@@ -1,5 +1,6 @@
 ![GNOME](https://img.shields.io/badge/GNOME-black?style=plastic&logo=gnome)
 ![Zig](https://img.shields.io/badge/Zig-F7A41D?style=plastic&logo=zig)
+![AUR Version](https://img.shields.io/aur/version/gnome-window-calls-git)
 [![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/vncsmyrnk/shell-utils/issues)
 
 # GNOME Window Calls D-Bus client
@@ -22,9 +23,17 @@ This project aims to provide useful, predefined and optimized use cases for this
 
 - Provide a listing of opened windows and switch to them using `rofi`
 
-## Run
+## Install
 
-To execute it, build it from source:
+### AUR
+
+Install it with your favorite AUR helper.
+
+```sh
+yay -S gnome-window-calls
+```
+
+### From source
 
 ```sh
 git clone git@github.com:vncsmyrnk/gnome-window-calls.git
