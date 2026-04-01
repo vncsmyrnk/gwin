@@ -4,5 +4,5 @@ default:
 build:
   zig build
 
-run:
-  zig build run
+run *args:
+  zig build run -- {{args}}
