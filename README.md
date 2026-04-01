@@ -21,3 +21,13 @@ This project aims to provide useful, predefined and optimized use cases for this
 ### Secondary goals
 
 - Provide a listing of opened windows and switch to them using `rofi`
+
+## Run
+
+To execute it, build it from source:
+
+```sh
+git clone git@github.com:vncsmyrnk/gnome-window-calls.git
+just build
+./zig-out/bin/gwc
+```
