@@ -28,7 +28,8 @@ pub const Connection = struct {
     }
 
     /// Call a DBus method that takes no parameters and returns a string.
-    pub fn callNoArgsReturnString(self: Connection, comptime dest: [:0]const u8, comptime path: [:0]const u8, comptime iface: [:0]const u8, comptime method: [:0]const u8) Error![]const u8 {
+    /// Caller owns the returned slice and must free it with `allocator.free()`.
+    pub fn callNoArgsReturnString(self: Connection, allocator: std.mem.Allocator, comptime dest: [:0]const u8, comptime path: [:0]const u8, comptime iface: [:0]const u8, comptime method: [:0]const u8) (std.mem.Allocator.Error || Error)![]const u8 {
         var err: ?*c.GError = null;
         const result = c.g_dbus_connection_call_sync(
             self.handle,
@@ -51,7 +52,8 @@ pub const Connection = struct {
 
         var json_output: [*c]const u8 = undefined;
         c.g_variant_get(result, "(&s)", &json_output);
-        return std.mem.span(json_output);
+        const span = std.mem.span(json_output);
+        return allocator.dupe(u8, span);
     }
 
     /// Call a DBus method that takes a single `u32` parameter and returns nothing meaningful.
