@@ -1,6 +1,7 @@
 ![GNOME](https://img.shields.io/badge/GNOME-black?style=plastic&logo=gnome)
 ![Zig](https://img.shields.io/badge/Zig-F7A41D?style=plastic&logo=zig)
 ![AUR Version](https://img.shields.io/aur/version/gnome-window-calls-git)
+[![CI workflow](https://github.com/vncsmyrnk/gnome-window-calls/actions/workflows/ci.yml/badge.svg)](https://github.com/vncsmyrnk/gnome-window-calls/actions/workflows/ci.yml)
 [![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/vncsmyrnk/shell-utils/issues)
 
 # GNOME Window Calls D-Bus client
