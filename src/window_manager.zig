@@ -23,15 +23,29 @@ pub const Error = error{
     NoWindows,
     WindowNotFound,
     JsonParseFailed,
+    FilterFailed,
 };
+
+/// Returns true if `wm_class` contains at least one of the `|`-delimited
+/// tokens in `pattern`. Matching is case-sensitive substring search.
+fn matchesExcludePattern(wm_class: []const u8, pattern: []const u8) bool {
+    var it = std.mem.splitScalar(u8, pattern, '|');
+    while (it.next()) |token| {
+        if (token.len == 0) continue;
+        if (std.mem.indexOf(u8, wm_class, token) != null) return true;
+    }
+    return false;
+}
 
 pub const WindowList = struct {
     parsed: std.json.Parsed([]Window),
     json_buf: []const u8,
     allocator: std.mem.Allocator,
+    /// Non-null only when the list was narrowed by `filtered()`.
+    filter_buf: ?[]const Window = null,
 
-    pub fn windows(self: WindowList) []Window {
-        return self.parsed.value;
+    pub fn windows(self: WindowList) []const Window {
+        return if (self.filter_buf) |buf| buf else self.parsed.value;
     }
 
     pub fn lastFocused(self: WindowList) ?Window {
@@ -60,7 +74,31 @@ pub const WindowList = struct {
         return ws[ri];
     }
 
+    /// Return a new `WindowList` that excludes any window whose `wm_class`
+    /// contains at least one of the `|`-delimited tokens in `exclude_pattern`.
+    /// Ownership is transferred from `self` into the returned list; the caller
+    /// must NOT call `deinit` on `self` afterwards — only on the returned value.
+    pub fn filtered(self: WindowList, exclude_pattern: []const u8) Error!WindowList {
+        const ws = self.parsed.value;
+        var buf = std.ArrayList(Window).initCapacity(self.allocator, ws.len) catch return Error.FilterFailed;
+        errdefer buf.deinit(self.allocator);
+
+        for (ws) |w| {
+            if (!matchesExcludePattern(w.wm_class, exclude_pattern)) {
+                buf.appendBounded(w) catch return Error.FilterFailed;
+            }
+        }
+
+        return .{
+            .parsed = self.parsed,
+            .json_buf = self.json_buf,
+            .allocator = self.allocator,
+            .filter_buf = buf.toOwnedSlice(self.allocator) catch return Error.FilterFailed,
+        };
+    }
+
     pub fn deinit(self: WindowList) void {
+        if (self.filter_buf) |buf| self.allocator.free(buf);
         self.parsed.deinit();
         self.allocator.free(self.json_buf);
     }
