@@ -129,12 +129,21 @@ fn runList(allocator: std.mem.Allocator) void {
         fatal("There are no open windows.\n", .{});
     }
 
-    const stdout = std.fs.File.stdout();
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
+    const stdout = &stdout_wrapper.interface;
+
     var i: u32 = 0;
     while (i < ws.len) : (i += 1) {
         const w = ws[ws.len - 1 - i];
-        var buf: [4096]u8 = undefined;
-        const line = std.fmt.bufPrint(&buf, "{s}\n", .{w.title}) catch continue;
-        _ = stdout.write(line) catch {};
+
+        var wm_class_buf: [256]u8 = undefined;
+        const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
+        const wm_class_str = if (std.mem.lastIndexOf(u8, wm_class_lower, ".")) |last_idx|
+            wm_class_lower[last_idx + 1 ..]
+        else
+            wm_class_lower;
+        stdout.print("{s} | {s}\n", .{ wm_class_str, w.title }) catch {};
     }
+    stdout.flush() catch {};
 }
