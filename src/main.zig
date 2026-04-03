@@ -164,7 +164,7 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
             fatal("Failed to list windows.\n", .{});
         defer window_list.deinit();
 
-        const ws = window_list.switchableWindows();
+        const ws = window_list.windows();
         if (ws.len == 0) {
             fatal("There are no other windows opened.\n", .{});
         }

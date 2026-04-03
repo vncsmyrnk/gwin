@@ -47,11 +47,6 @@ pub const WindowList = struct {
         return if (self.filtered_buf) |buf| buf else self.parsed.value;
     }
 
-    /// Get all windows but the current focused one
-    pub fn switchableWindows(self: WindowList) []const Window {
-        return if (self.filtered_buf) |buf| buf[0 .. buf.len - 1] else self.parsed.value[0 .. self.parsed.value.len - 1];
-    }
-
     pub fn lastFocused(self: WindowList) ?Window {
         const ws = self.windows();
         return if (ws.len > 1) ws[ws.len - 2] else null;
@@ -87,8 +82,10 @@ pub const WindowList = struct {
         var buf = std.ArrayList(Window).initCapacity(self.allocator, ws.len) catch return Error.FilterFailed;
         errdefer buf.deinit(self.allocator);
 
-        for (ws) |w| {
-            if (!matchesExcludePattern(w.wm_class, exclude_pattern)) {
+        for (ws, 0..) |w, i| {
+            // The current window should never be excluded
+            // as the last window fetch consider it is always present
+            if (i == ws.len - 1 or !matchesExcludePattern(w.wm_class, exclude_pattern)) {
                 buf.appendBounded(w) catch return Error.FilterFailed;
             }
         }
