@@ -1,5 +1,6 @@
 const std = @import("std");
 const wm = @import("window_manager.zig");
+const l = @import("launcher.zig");
 
 const usage =
     \\Usage: gwc <command> [options]
@@ -9,9 +10,10 @@ const usage =
     \\  switch --last                      Activate the last focused window
     \\  switch --least-recent              Activate the least recently focused window
     \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
-    \\  list                               List open windows in reverse order (index 0 first)
+    \\  list   windows                     List open windows in reverse order (index 0 first). Format: `{wm_class} | {title}`
+    \\  list   applications                List installed applications
     \\
-    \\Options for switch --last / --index:
+    \\Options for switch without a specific ID:
     \\  --exclude <pattern>                Skip windows whose wm_class contains any
     \\                                     '|'-delimited token in <pattern>.
     \\                                     Example: --exclude 'ghostty|google-chrome'
@@ -39,7 +41,7 @@ pub fn main() void {
     if (std.mem.eql(u8, args[1], "switch")) {
         runSwitch(allocator, args[2..]);
     } else if (std.mem.eql(u8, args[1], "list")) {
-        runList(allocator);
+        runList(allocator, args[2..]);
     } else {
         fatal("{s}", .{usage});
     }
@@ -115,35 +117,54 @@ fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
     }
 }
 
-fn runList(allocator: std.mem.Allocator) void {
-    const manager = wm.WindowManager.init() catch
-        fatal("Failed to connect to D-Bus session bus.\n", .{});
-    defer manager.deinit();
+fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+    if (args.len == 0) fatal("{s}", .{usage});
 
-    const window_list = manager.list(allocator) catch
-        fatal("Failed to list windows.\n", .{});
-    defer window_list.deinit();
+    if (std.mem.eql(u8, args[0], "windows")) {
+        const manager = wm.WindowManager.init() catch
+            fatal("Failed to connect to D-Bus session bus.\n", .{});
+        defer manager.deinit();
 
-    const ws = window_list.windows();
-    if (ws.len == 0) {
-        fatal("There are no open windows.\n", .{});
+        const window_list = manager.list(allocator) catch
+            fatal("Failed to list windows.\n", .{});
+        defer window_list.deinit();
+
+        const ws = window_list.windows();
+        if (ws.len == 0) {
+            fatal("There are no open windows.\n", .{});
+        }
+
+        var stdout_buf: [4096]u8 = undefined;
+        var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
+        const stdout = &stdout_wrapper.interface;
+
+        var i: u32 = 0;
+        while (i < ws.len) : (i += 1) {
+            const w = ws[ws.len - 1 - i];
+
+            var wm_class_buf: [256]u8 = undefined;
+            const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
+            const wm_class_str = if (std.mem.lastIndexOf(u8, wm_class_lower, ".")) |last_idx|
+                wm_class_lower[last_idx + 1 ..]
+            else
+                wm_class_lower;
+            stdout.print("{s} | {s}\n", .{ wm_class_str, w.title }) catch {};
+        }
+        stdout.flush() catch {};
+    } else if (std.mem.eql(u8, args[0], "applications")) {
+        var stdout_buf: [4096]u8 = undefined;
+        var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
+        const stdout = &stdout_wrapper.interface;
+
+        const app_list = l.AppList.init(allocator) catch
+            fatal("Failed to list applications.\n", .{});
+        defer app_list.deinit();
+
+        for (app_list.apps_buf) |app| {
+            stdout.print("{s}\n", .{app.name}) catch {};
+        }
+        stdout.flush() catch {};
+    } else {
+        fatal("{s}", .{usage});
     }
-
-    var stdout_buf: [4096]u8 = undefined;
-    var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
-    const stdout = &stdout_wrapper.interface;
-
-    var i: u32 = 0;
-    while (i < ws.len) : (i += 1) {
-        const w = ws[ws.len - 1 - i];
-
-        var wm_class_buf: [256]u8 = undefined;
-        const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
-        const wm_class_str = if (std.mem.lastIndexOf(u8, wm_class_lower, ".")) |last_idx|
-            wm_class_lower[last_idx + 1 ..]
-        else
-            wm_class_lower;
-        stdout.print("{s} | {s}\n", .{ wm_class_str, w.title }) catch {};
-    }
-    stdout.flush() catch {};
 }
