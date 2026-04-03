@@ -1,6 +1,6 @@
-![GNOME](https://img.shields.io/badge/GNOME-black?style=plastic&logo=gnome)
-![Zig](https://img.shields.io/badge/Zig-F7A41D?style=plastic&logo=zig)
-![AUR Version](https://img.shields.io/aur/version/gwin-git?style=plastic&label=AUR)
+[![GNOME](https://img.shields.io/badge/GNOME-black?style=plastic&logo=gnome)](https://wiki.archlinux.org/title/GNOME)
+[![Zig](https://img.shields.io/badge/Zig-F7A41D?style=plastic&logo=zig)](https://ziglang.org/)
+[![AUR Version](https://img.shields.io/aur/version/gwin-git?style=plastic&label=AUR)](https://aur.archlinux.org/packages/gwin-git)
 [![CI workflow](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml/badge.svg)](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml)
 [![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/vncsmyrnk/shell-utils/issues)
 
