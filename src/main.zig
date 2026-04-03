@@ -7,7 +7,7 @@ const usage =
     \\
     \\Commands:
     \\  switch <win_id>                    Activate the window with the given window ID
-    \\  switch --last                      Activate the last focused window
+    \\  switch --last                      Activate the last application focused window
     \\  switch --last-instance             Activate the last instance of the focused window
     \\  switch --least-recent              Activate the least recently focused window
     \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
@@ -75,7 +75,7 @@ fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
             manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
         defer window_list.deinit();
 
-        const win = window_list.lastFocused() orelse
+        const win = window_list.lastApplicationFocused() orelse
             fatal("There are no open windows to switch to.\n", .{});
         manager.activate(win.id) catch
             fatal("Failed to activate window {d}.\n", .{win.id});
@@ -114,7 +114,7 @@ fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
             manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
         defer window_list.deinit();
 
-        const win = window_list.firstFocused() orelse
+        const win = window_list.firstWindowFocused() orelse
             fatal("There are no open windows to switch to.\n", .{});
         manager.activate(win.id) catch
             fatal("Failed to activate window {d}.\n", .{win.id});

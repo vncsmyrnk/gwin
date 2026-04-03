@@ -47,12 +47,19 @@ pub const WindowList = struct {
         return if (self.filtered_buf) |buf| buf else self.parsed.value;
     }
 
-    pub fn lastFocused(self: WindowList) ?Window {
+    pub fn lastApplicationFocused(self: WindowList) ?Window {
         const ws = self.windows();
-        return if (ws.len > 1) ws[ws.len - 2] else null;
+        var i = ws.len - 2;
+        while (i > 0) { // Excludes windows from the same application
+            if (!std.mem.eql(u8, ws[i].wm_class, ws[ws.len - 1].wm_class)) {
+                return ws[i];
+            }
+            i -= 1;
+        }
+        return null;
     }
 
-    pub fn firstFocused(self: WindowList) ?Window {
+    pub fn firstWindowFocused(self: WindowList) ?Window {
         const ws = self.windows();
         return if (ws.len > 0) ws[0] else null;
     }
