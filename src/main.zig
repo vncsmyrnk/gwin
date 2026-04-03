@@ -11,7 +11,7 @@ const usage =
     \\  switch --last-instance             Activate the last instance of the focused window
     \\  switch --least-recent              Activate the least recently focused window
     \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
-    \\  list   windows                     List open windows in reverse order (index 0 being the current focused window). Format: `{wm_class} | {title}`
+    \\  list   windows      [--rofi]       List open windows in reverse order (index 0 being the current focused window). Format: `{wm_class} | {title}`
     \\  list   applications [--rofi]       List installed applications
     \\  raise  <desktop_id>                Raise window for <desktop_id> or launch it if not open (Example: `raise org.gnome.Calculator.desktop`)
     \\
