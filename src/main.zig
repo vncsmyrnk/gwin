@@ -12,6 +12,7 @@ const usage =
     \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
     \\  list   windows                     List open windows in reverse order (index 0 first). Format: `{wm_class} | {title}`
     \\  list   applications                List installed applications
+    \\  list   applications --rofi         List installed applications in a formatted format for rofi
     \\
     \\Options for switch without a specific ID:
     \\  --exclude <pattern>                Skip windows whose wm_class contains any
@@ -151,7 +152,12 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
             stdout.print("{s} | {s}\n", .{ wm_class_str, w.title }) catch {};
         }
         stdout.flush() catch {};
-    } else if (std.mem.eql(u8, args[0], "applications")) {
+    } else if (std.mem.eql(u8, args[0], "applications") or std.mem.eql(u8, args[0], "application")) {
+        var rofi = false;
+        if (args.len > 1 and std.mem.eql(u8, args[1], "--rofi")) {
+            rofi = true;
+        }
+
         var stdout_buf: [4096]u8 = undefined;
         var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
         const stdout = &stdout_wrapper.interface;
@@ -161,7 +167,11 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         defer app_list.deinit();
 
         for (app_list.apps_buf) |app| {
-            stdout.print("{s}\n", .{app.name}) catch {};
+            if (rofi) {
+                stdout.print("{s}\x00display\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.name }) catch {};
+            } else {
+                stdout.print("{s} | {s}\n", .{ app.id, app.name }) catch {};
+            }
         }
         stdout.flush() catch {};
     } else {
