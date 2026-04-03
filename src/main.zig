@@ -3,22 +3,21 @@ const wm = @import("window_manager.zig");
 const l = @import("launcher.zig");
 
 const usage =
-    \\Usage: gwc <command> [options]
+    \\Usage: gwin <command> [options]
     \\
     \\Commands:
-    \\  switch <id>                        Activate the window with the given ID
+    \\  switch <win_id>                    Activate the window with the given window ID
     \\  switch --last                      Activate the last focused window
     \\  switch --least-recent              Activate the least recently focused window
     \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
     \\  list   windows                     List open windows in reverse order (index 0 first). Format: `{wm_class} | {title}`
-    \\  list   applications                List installed applications
-    \\  list   applications --rofi         List installed applications in a formatted format for rofi
+    \\  list   applications [--rofi]       List installed applications
+    \\  raise  <desktop_id>                Raise window for <desktop_id> or launch it if not open (Example: `raise org.gnome.Calculator.desktop`)
     \\
     \\Options for switch without a specific ID:
     \\  --exclude <pattern>                Skip windows whose wm_class contains any
     \\                                     '|'-delimited token in <pattern>.
     \\                                     Example: --exclude 'ghostty|google-chrome'
-    \\
 ;
 
 fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
@@ -43,6 +42,8 @@ pub fn main() void {
         runSwitch(allocator, args[2..]);
     } else if (std.mem.eql(u8, args[1], "list")) {
         runList(allocator, args[2..]);
+    } else if (std.mem.eql(u8, args[1], "raise")) {
+        runRaise(allocator, args[2..]);
     } else {
         fatal("{s}", .{usage});
     }
@@ -176,5 +177,49 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         stdout.flush() catch {};
     } else {
         fatal("{s}", .{usage});
+    }
+}
+
+fn runRaise(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+    if (args.len == 0) fatal("{s}", .{usage});
+
+    const app_id = args[0];
+
+    var base_name: []const u8 = app_id;
+    if (std.mem.endsWith(u8, base_name, ".desktop")) {
+        base_name = base_name[0 .. base_name.len - ".desktop".len];
+    }
+
+    var base_name_buf: [256]u8 = undefined;
+    const base_name_lower = std.ascii.lowerString(&base_name_buf, base_name);
+
+    const manager = wm.WindowManager.init() catch
+        fatal("Failed to connect to D-Bus session bus.\n", .{});
+    defer manager.deinit();
+
+    const window_list = manager.list(allocator) catch
+        fatal("Failed to list windows.\n", .{});
+    defer window_list.deinit();
+
+    const ws = window_list.windows();
+    var found_window: ?wm.Window = null;
+
+    for (ws) |w| {
+        var wm_class_buf: [256]u8 = undefined;
+        const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
+
+        if (std.mem.indexOf(u8, wm_class_lower, base_name_lower) != null) {
+            found_window = w;
+            break;
+        }
+    }
+
+    if (found_window) |w| {
+        manager.activate(w.id) catch
+            fatal("Failed to activate window {d}.\n", .{w.id});
+    } else {
+        l.launch(app_id) catch |err| {
+            fatal("Failed to launch application '{s}': {any}\n", .{ app_id, err });
+        };
     }
 }
