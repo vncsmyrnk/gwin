@@ -58,7 +58,7 @@ fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
     while (i < args.len) : (i += 1) {
         if (std.mem.eql(u8, args[i], "--exclude")) {
             if (i + 1 >= args.len) fatal("Missing value for --exclude.\n{s}", .{usage});
-            exclude_pattern = args[i + 1];
+            exclude_pattern = std.mem.trim(u8, args[i + 1], "\"");
             i += 1;
         }
     }
