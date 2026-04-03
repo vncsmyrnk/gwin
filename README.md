@@ -28,6 +28,20 @@ The primary goal is to provide useful, predefined and optimized use cases for sw
 > [!NOTE]
 > **Why Zig?** It can directly import C bindings for GDBus, already included as part of GNOME project's GLib (`gio/gdbus`).
 
+## Examples
+
+### Switching to opening windows via `rofi`
+
+```sh
+gwin list windows --rofi | rofi -x11 -normal-window -dmenu | xargs -I{} gwin switch {}
+```
+
+### Running or raising applications
+
+```sh
+gwin list applications --rofi | rofi -x11 -normal-window -dmenu | xargs -I{} gwin raise {}
+```
+
 ## Install
 
 ### AUR
