@@ -8,13 +8,14 @@ const c = @cImport({
 pub const App = struct {
     id: []const u8,
     name: []const u8,
+    icon: []const u8,
 };
 
 pub const AppList = struct {
     apps_buf: []App,
     arena: std.heap.ArenaAllocator,
 
-    pub fn init(base_allocator: std.mem.Allocator) !AppList {
+    inline fn initInternal(base_allocator: std.mem.Allocator, comptime fetch_icons: bool) !AppList {
         var arena = std.heap.ArenaAllocator.init(base_allocator);
         errdefer arena.deinit();
 
@@ -43,13 +44,31 @@ pub const AppList = struct {
             const name_str = try alloc.dupe(u8, std.mem.span(c_name));
             const id_str = try alloc.dupe(u8, std.mem.span(c_id));
 
-            try buf.appendBounded(.{ .name = name_str, .id = id_str });
+            var icon_str: []const u8 = "";
+            if (comptime fetch_icons) {
+                if (c.g_app_info_get_icon(app_info)) |c_icon| {
+                    if (c.g_icon_to_string(c_icon)) |c_icon_str| {
+                        defer c.g_free(c_icon_str);
+                        icon_str = try alloc.dupe(u8, std.mem.span(c_icon_str));
+                    }
+                }
+            }
+
+            try buf.appendBounded(.{ .name = name_str, .id = id_str, .icon = icon_str });
         }
 
         return .{
             .apps_buf = try buf.toOwnedSlice(alloc),
             .arena = arena,
         };
+    }
+
+    pub fn init(base_allocator: std.mem.Allocator) !AppList {
+        return initInternal(base_allocator, false);
+    }
+
+    pub fn initWithIcons(base_allocator: std.mem.Allocator) !AppList {
+        return initInternal(base_allocator, true);
     }
 
     pub fn deinit(self: AppList) void {

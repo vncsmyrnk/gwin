@@ -214,13 +214,19 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
         const stdout = &stdout_wrapper.interface;
 
-        const app_list = a.AppList.init(allocator) catch
-            fatal("Failed to list applications.\n", .{});
+        const app_list = if (rofi)
+            a.AppList.initWithIcons(allocator) catch fatal("Failed to list applications.\n", .{})
+        else
+            a.AppList.init(allocator) catch fatal("Failed to list applications.\n", .{});
         defer app_list.deinit();
 
         for (app_list.apps_buf) |app| {
             if (rofi) {
-                stdout.print("{s}\x00display\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.name }) catch {};
+                if (app.icon.len > 0) {
+                    stdout.print("{s}\x00display\x1f{s}\x1ficon\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.icon, app.name }) catch {};
+                } else {
+                    stdout.print("{s}\x00display\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.name }) catch {};
+                }
             } else {
                 stdout.print("{s} | {s}\n", .{ app.id, app.name }) catch {};
             }
