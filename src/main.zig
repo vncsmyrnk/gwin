@@ -1,6 +1,6 @@
 const std = @import("std");
-const wm = @import("window_manager.zig");
-const l = @import("launcher.zig");
+const wm = @import("window.zig");
+const a = @import("app_info.zig");
 
 const usage =
     \\Usage: gwin <command> [options]
@@ -196,7 +196,7 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
         const stdout = &stdout_wrapper.interface;
 
-        const app_list = l.AppList.init(allocator) catch
+        const app_list = a.AppList.init(allocator) catch
             fatal("Failed to list applications.\n", .{});
         defer app_list.deinit();
 
@@ -251,7 +251,7 @@ fn runRaise(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         manager.activate(w.id) catch
             fatal("Failed to activate window {d}.\n", .{w.id});
     } else {
-        l.launch(app_id) catch |err| {
+        a.launch(app_id) catch |err| {
             fatal("Failed to launch application '{s}': {any}\n", .{ app_id, err });
         };
     }
