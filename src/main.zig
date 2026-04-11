@@ -261,7 +261,11 @@ fn runRaise(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
     const ws = window_list.windows();
     var found_window: ?wm.Window = null;
 
-    for (ws) |w| {
+    var j: usize = ws.len;
+    while (j > 0) {
+        j -= 1;
+
+        const w = ws[j];
         var wm_class_buf: [256]u8 = undefined;
         const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
 
