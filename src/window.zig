@@ -20,6 +20,7 @@ pub const Window = struct {
 pub const Error = error{
     ListFailed,
     ActivateFailed,
+    CloseFailed,
     NoWindows,
     WindowNotFound,
     JsonParseFailed,
@@ -153,6 +154,6 @@ pub const WindowManager = struct {
     /// Closes a window by its ID.
     pub fn close(self: WindowManager, id: u32) Error!void {
         self.conn.callU32(dest, path, iface, "Close", id) catch
-            return Error.ActivateFailed;
+            return Error.CloseFailed;
     }
 };
