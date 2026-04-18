@@ -27,16 +27,45 @@ pub const Error = error{
     FilterFailed,
 };
 
-/// Returns true if `wm_class` contains at least one of the `|`-delimited
-/// tokens in `pattern`. Matching is case-sensitive substring search.
-fn matchesExcludePattern(wm_class: []const u8, pattern: []const u8) bool {
-    var it = std.mem.splitScalar(u8, pattern, '|');
-    while (it.next()) |token| {
-        if (token.len == 0) continue;
-        if (std.mem.indexOf(u8, wm_class, token) != null) return true;
+pub const WindowManager = struct {
+    conn: dbus.Connection,
+
+    pub fn init() !WindowManager {
+        const conn = dbus.Connection.init() catch return error.ListFailed;
+        return .{ .conn = conn };
     }
-    return false;
-}
+
+    pub fn deinit(self: WindowManager) void {
+        self.conn.deinit();
+    }
+
+    /// Fetch all windows from the window-calls extension.
+    pub fn list(self: WindowManager, allocator: std.mem.Allocator) Error!WindowList {
+        const json_slice = self.conn.callNoArgsReturnString(allocator, dest, path, iface, "List") catch
+            return Error.ListFailed;
+
+        const parsed = std.json.parseFromSlice(
+            []Window,
+            allocator,
+            json_slice,
+            .{ .ignore_unknown_fields = true },
+        ) catch return Error.JsonParseFailed;
+
+        return .{ .parsed = parsed, .json_buf = json_slice, .allocator = allocator };
+    }
+
+    /// Activate (focus) a window by its ID.
+    pub fn activate(self: WindowManager, id: u32) Error!void {
+        self.conn.callU32(dest, path, iface, "Activate", id) catch
+            return Error.ActivateFailed;
+    }
+
+    /// Closes a window by its ID.
+    pub fn close(self: WindowManager, id: u32) Error!void {
+        self.conn.callU32(dest, path, iface, "Close", id) catch
+            return Error.CloseFailed;
+    }
+};
 
 pub const WindowList = struct {
     parsed: std.json.Parsed([]Window),
@@ -116,44 +145,15 @@ pub const WindowList = struct {
         self.parsed.deinit();
         self.allocator.free(self.json_buf);
     }
-};
 
-pub const WindowManager = struct {
-    conn: dbus.Connection,
-
-    pub fn init() !WindowManager {
-        const conn = dbus.Connection.init() catch return error.ListFailed;
-        return .{ .conn = conn };
-    }
-
-    pub fn deinit(self: WindowManager) void {
-        self.conn.deinit();
-    }
-
-    /// Fetch all windows from the window-calls extension.
-    pub fn list(self: WindowManager, allocator: std.mem.Allocator) Error!WindowList {
-        const json_slice = self.conn.callNoArgsReturnString(allocator, dest, path, iface, "List") catch
-            return Error.ListFailed;
-
-        const parsed = std.json.parseFromSlice(
-            []Window,
-            allocator,
-            json_slice,
-            .{ .ignore_unknown_fields = true },
-        ) catch return Error.JsonParseFailed;
-
-        return .{ .parsed = parsed, .json_buf = json_slice, .allocator = allocator };
-    }
-
-    /// Activate (focus) a window by its ID.
-    pub fn activate(self: WindowManager, id: u32) Error!void {
-        self.conn.callU32(dest, path, iface, "Activate", id) catch
-            return Error.ActivateFailed;
-    }
-
-    /// Closes a window by its ID.
-    pub fn close(self: WindowManager, id: u32) Error!void {
-        self.conn.callU32(dest, path, iface, "Close", id) catch
-            return Error.CloseFailed;
+    /// Returns true if `wm_class` contains at least one of the `|`-delimited
+    /// tokens in `pattern`. Matching is case-sensitive substring search.
+    fn matchesExcludePattern(wm_class: []const u8, pattern: []const u8) bool {
+        var it = std.mem.splitScalar(u8, pattern, '|');
+        while (it.next()) |token| {
+            if (token.len == 0) continue;
+            if (std.mem.indexOf(u8, wm_class, token) != null) return true;
+        }
+        return false;
     }
 };
