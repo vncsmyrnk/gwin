@@ -52,19 +52,23 @@ pub fn main() void {
 
     if (args.len < 2) fatal("{s}", .{usage});
 
+    const manager = wm.WindowManager.init() catch
+        fatal("Failed to connect to D-Bus session bus.\n", .{});
+    defer manager.deinit();
+
     const cmd = parseCommand(args[1]) orelse {
         fatal("{s}", .{usage});
     };
 
     switch (cmd) {
-        .switchCmd => runSwitch(allocator, args[2..]),
-        .listCmd => runList(allocator, args[2..]),
-        .raiseCmd => runRaise(allocator, args[2..]),
-        .closeCmd => runClose(allocator, args[2..]),
+        .switchCmd => runSwitch(allocator, manager, args[2..]),
+        .listCmd => runList(allocator, manager, args[2..]),
+        .raiseCmd => runRaise(allocator, manager, args[2..]),
+        .closeCmd => runClose(allocator, manager, args[2..]),
     }
 }
 
-fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+fn runSwitch(allocator: std.mem.Allocator, manager: wm.WindowManager, args: []const [:0]const u8) void {
     if (args.len == 0) fatal("{s}", .{usage});
 
     var exclude_pattern: ?[]const u8 = null;
@@ -77,10 +81,6 @@ fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         }
     }
 
-    const manager = wm.WindowManager.init() catch
-        fatal("Failed to connect to D-Bus session bus.\n", .{});
-    defer manager.deinit();
-
     const Flag = enum {
         @"--last",
         @"--last-instance",
@@ -92,88 +92,25 @@ fn runSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
         const id = std.fmt.parseInt(u32, args[0], 10) catch
             fatal("Invalid window ID: {s}\n{s}", .{ args[0], usage });
 
-        manager.activate(id) catch
-            fatal("Failed to activate window {d}.\n", .{id});
-        return;
+        return runSwitchByWindowID(manager, id);
     };
 
     switch (flag) {
-        .@"--last" => {
-            const window_list = if (exclude_pattern) |pattern|
-                (manager.list(allocator) catch fatal("Failed to list windows.\n", .{})).filtered(pattern) catch
-                    fatal("Failed to apply exclude filter.\n", .{})
-            else
-                manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
-            defer window_list.deinit();
-
-            const win = window_list.lastApplicationFocused() orelse
-                fatal("There are no open windows to switch to.\n", .{});
-            manager.activate(win.id) catch
-                fatal("Failed to activate window {d}.\n", .{win.id});
-        },
-        .@"--last-instance" => {
-            const window_list = manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
-            defer window_list.deinit();
-
-            const ws = window_list.windows();
-            if (ws.len < 2) {
-                fatal("There are no other windows to switch to.\n", .{});
-            }
-            const current_window = ws[ws.len - 1];
-
-            var target_window: ?wm.Window = null;
-            var j: usize = ws.len - 1;
-            while (j > 0) {
-                j -= 1;
-                const w = ws[j];
-                if (std.mem.eql(u8, w.wm_class, current_window.wm_class)) {
-                    target_window = w;
-                    break;
-                }
-            }
-
-            if (target_window) |win| {
-                manager.activate(win.id) catch
-                    fatal("Failed to activate window {d}.\n", .{win.id});
-            } else {
-                fatal("No other instance of the current application was found.\n", .{});
-            }
-        },
-        .@"--least-recent" => {
-            const window_list = if (exclude_pattern) |pattern|
-                (manager.list(allocator) catch fatal("Failed to list windows.\n", .{})).filtered(pattern) catch
-                    fatal("Failed to apply exclude filter.\n", .{})
-            else
-                manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
-            defer window_list.deinit();
-
-            const win = window_list.firstWindowFocused() orelse
-                fatal("There are no open windows to switch to.\n", .{});
-            manager.activate(win.id) catch
-                fatal("Failed to activate window {d}.\n", .{win.id});
-        },
+        .@"--last" => runSwitchLast(allocator, manager, exclude_pattern),
+        .@"--last-instance" => runSwitchLastInstance(allocator, manager),
+        .@"--least-recent" => runSwitchLeastRecent(allocator, manager, exclude_pattern),
         .@"--index" => {
             if (args.len < 2) fatal("Missing value for --index.\n{s}", .{usage});
 
             const index = std.fmt.parseInt(u32, args[1], 10) catch
                 fatal("Invalid index: {s}\n{s}", .{ args[1], usage });
 
-            const window_list = if (exclude_pattern) |pattern|
-                (manager.list(allocator) catch fatal("Failed to list windows.\n", .{})).filtered(pattern) catch
-                    fatal("Failed to apply exclude filter.\n", .{})
-            else
-                manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
-            defer window_list.deinit();
-
-            const win = window_list.getByIndex(index) orelse
-                fatal("No window at index {d}.\n", .{index});
-            manager.activate(win.id) catch
-                fatal("Failed to activate window {d}.\n", .{win.id});
+            runSwitchByIndex(allocator, manager, index, exclude_pattern);
         },
     }
 }
 
-fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+fn runList(allocator: std.mem.Allocator, manager: wm.WindowManager, args: []const [:0]const u8) void {
     if (args.len == 0) fatal("{s}", .{usage});
 
     var rofi = false;
@@ -191,89 +128,12 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
     };
 
     switch (subCmd) {
-        .windows => {
-            const manager = wm.WindowManager.init() catch
-                fatal("Failed to connect to D-Bus session bus.\n", .{});
-            defer manager.deinit();
-
-            const window_list = manager.list(allocator) catch
-                fatal("Failed to list windows.\n", .{});
-            defer window_list.deinit();
-
-            const ws = window_list.switchableWindows();
-            if (ws.len == 0) {
-                fatal("There are no other windows opened.\n", .{});
-            }
-
-            var stdout_buf: [4096]u8 = undefined;
-            var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
-            const stdout = &stdout_wrapper.interface;
-
-            var arena = std.heap.ArenaAllocator.init(allocator);
-            defer arena.deinit();
-            const temp_alloc = arena.allocator();
-
-            var metadata_cache = std.StringHashMap(a.AppMetadata).init(temp_alloc);
-
-            var i: u32 = 0;
-            while (i < ws.len) : (i += 1) {
-                const w = ws[ws.len - 1 - i];
-
-                var wm_class_buf: [256]u8 = undefined;
-                const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
-                const wm_class_str = if (std.mem.lastIndexOf(u8, wm_class_lower, ".")) |last_idx|
-                    wm_class_lower[last_idx + 1 ..]
-                else
-                    wm_class_lower;
-
-                if (rofi) {
-                    const meta = metadata_cache.get(w.wm_class) orelse blk: {
-                        const fetched = a.getMetadataByWmClass(temp_alloc, w.wm_class) catch a.AppMetadata{ .name = "", .icon = "" };
-                        metadata_cache.put(w.wm_class, fetched) catch {};
-                        break :blk fetched;
-                    };
-
-                    const display_name = if (meta.name.len > 0) meta.name else wm_class_str;
-
-                    if (meta.icon.len > 0) {
-                        stdout.print("{d}\x00display\x1f{s} > {s}\x1ficon\x1f{s}\x1fmeta\x1f{s}\n", .{ w.id, display_name, w.title, meta.icon, w.title }) catch {};
-                    } else {
-                        stdout.print("{d}\x00display\x1f{s} > {s}\x1fmeta\x1f{s}\n", .{ w.id, display_name, w.title, w.title }) catch {};
-                    }
-                } else {
-                    stdout.print("{s} | {s}\n", .{ wm_class_str, w.title }) catch {};
-                }
-            }
-            stdout.flush() catch fatal("failed to flush output\n", .{});
-        },
-        .applications => {
-            var stdout_buf: [4096]u8 = undefined;
-            var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
-            const stdout = &stdout_wrapper.interface;
-
-            const app_list = if (rofi)
-                a.AppList.initWithIcons(allocator) catch fatal("Failed to list applications.\n", .{})
-            else
-                a.AppList.init(allocator) catch fatal("Failed to list applications.\n", .{});
-            defer app_list.deinit();
-
-            for (app_list.apps_buf) |app| {
-                if (rofi) {
-                    if (app.icon.len > 0) {
-                        stdout.print("{s}\x00display\x1f{s}\x1ficon\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.icon, app.name }) catch {};
-                    } else {
-                        stdout.print("{s}\x00display\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.name }) catch {};
-                    }
-                } else {
-                    stdout.print("{s} | {s}\n", .{ app.id, app.name }) catch {};
-                }
-            }
-            stdout.flush() catch {};
-        },
+        .windows => runListWindows(allocator, manager, rofi),
+        .applications => runListApplications(allocator, rofi),
     }
 }
 
-fn runRaise(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
+fn runRaise(allocator: std.mem.Allocator, manager: wm.WindowManager, args: []const [:0]const u8) void {
     if (args.len == 0) fatal("{s}", .{usage});
 
     const app_id = args[0];
@@ -282,10 +142,6 @@ fn runRaise(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
     if (std.mem.endsWith(u8, base_name, ".desktop")) {
         base_name = base_name[0 .. base_name.len - ".desktop".len];
     }
-
-    const manager = wm.WindowManager.init() catch
-        fatal("Failed to connect to D-Bus session bus.\n", .{});
-    defer manager.deinit();
 
     const window_list = manager.list(allocator) catch
         fatal("Failed to list windows.\n", .{});
@@ -336,16 +192,165 @@ fn runRaise(allocator: std.mem.Allocator, args: []const [:0]const u8) void {
     };
 }
 
-fn runClose(_: std.mem.Allocator, args: []const [:0]const u8) void {
+fn runClose(_: std.mem.Allocator, manager: wm.WindowManager, args: []const [:0]const u8) void {
     if (args.len == 0) fatal("{s}", .{usage});
 
     const id = std.fmt.parseInt(u32, args[0], 10) catch
         fatal("Invalid window ID: {s}\n{s}", .{ args[0], usage });
 
-    const manager = wm.WindowManager.init() catch
-        fatal("Failed to connect to D-Bus session bus.\n", .{});
-
-    defer manager.deinit();
     manager.close(id) catch
         fatal("Failed to activate window {d}.\n", .{id});
+}
+
+fn runSwitchByWindowID(manager: wm.WindowManager, id: u32) void {
+    manager.activate(id) catch
+        fatal("Failed to activate window {d}.\n", .{id});
+}
+
+fn runSwitchLast(allocator: std.mem.Allocator, manager: wm.WindowManager, exclude_pattern: ?[]const u8) void {
+    const window_list = if (exclude_pattern) |pattern|
+        (manager.list(allocator) catch fatal("Failed to list windows.\n", .{})).filtered(pattern) catch
+            fatal("Failed to apply exclude filter.\n", .{})
+    else
+        manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
+    defer window_list.deinit();
+
+    const win = window_list.lastApplicationFocused() orelse
+        fatal("There are no open windows to switch to.\n", .{});
+    manager.activate(win.id) catch
+        fatal("Failed to activate window {d}.\n", .{win.id});
+}
+
+fn runSwitchLastInstance(allocator: std.mem.Allocator, manager: wm.WindowManager) void {
+    const window_list = manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
+    defer window_list.deinit();
+
+    const ws = window_list.windows();
+    if (ws.len < 2) {
+        fatal("There are no other windows to switch to.\n", .{});
+    }
+    const current_window = ws[ws.len - 1];
+
+    var target_window: ?wm.Window = null;
+    var j: usize = ws.len - 1;
+    while (j > 0) {
+        j -= 1;
+        const w = ws[j];
+        if (std.mem.eql(u8, w.wm_class, current_window.wm_class)) {
+            target_window = w;
+            break;
+        }
+    }
+
+    if (target_window) |win| {
+        manager.activate(win.id) catch
+            fatal("Failed to activate window {d}.\n", .{win.id});
+    } else {
+        fatal("No other instance of the current application was found.\n", .{});
+    }
+}
+
+fn runSwitchLeastRecent(allocator: std.mem.Allocator, manager: wm.WindowManager, exclude_pattern: ?[]const u8) void {
+    const window_list = if (exclude_pattern) |pattern|
+        (manager.list(allocator) catch fatal("Failed to list windows.\n", .{})).filtered(pattern) catch
+            fatal("Failed to apply exclude filter.\n", .{})
+    else
+        manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
+    defer window_list.deinit();
+
+    const win = window_list.firstWindowFocused() orelse
+        fatal("There are no open windows to switch to.\n", .{});
+    manager.activate(win.id) catch
+        fatal("Failed to activate window {d}.\n", .{win.id});
+}
+
+fn runSwitchByIndex(allocator: std.mem.Allocator, manager: wm.WindowManager, index: u32, exclude_pattern: ?[]const u8) void {
+    const window_list = if (exclude_pattern) |pattern|
+        (manager.list(allocator) catch fatal("Failed to list windows.\n", .{})).filtered(pattern) catch
+            fatal("Failed to apply exclude filter.\n", .{})
+    else
+        manager.list(allocator) catch fatal("Failed to list windows.\n", .{});
+    defer window_list.deinit();
+
+    const win = window_list.getByIndex(index) orelse
+        fatal("No window at index {d}.\n", .{index});
+    manager.activate(win.id) catch
+        fatal("Failed to activate window {d}.\n", .{win.id});
+}
+
+fn runListWindows(allocator: std.mem.Allocator, manager: wm.WindowManager, rofi: bool) void {
+    const window_list = manager.list(allocator) catch
+        fatal("Failed to list windows.\n", .{});
+    defer window_list.deinit();
+
+    const ws = window_list.switchableWindows();
+    if (ws.len == 0) {
+        fatal("There are no other windows opened.\n", .{});
+    }
+
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
+    const stdout = &stdout_wrapper.interface;
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const temp_alloc = arena.allocator();
+
+    var metadata_cache = std.StringHashMap(a.AppMetadata).init(temp_alloc);
+
+    var i: u32 = 0;
+    while (i < ws.len) : (i += 1) {
+        const w = ws[ws.len - 1 - i];
+
+        var wm_class_buf: [256]u8 = undefined;
+        const wm_class_lower = std.ascii.lowerString(&wm_class_buf, w.wm_class);
+        const wm_class_str = if (std.mem.lastIndexOf(u8, wm_class_lower, ".")) |last_idx|
+            wm_class_lower[last_idx + 1 ..]
+        else
+            wm_class_lower;
+
+        if (rofi) {
+            const meta = metadata_cache.get(w.wm_class) orelse blk: {
+                const fetched = a.getMetadataByWmClass(temp_alloc, w.wm_class) catch a.AppMetadata{ .name = "", .icon = "" };
+                metadata_cache.put(w.wm_class, fetched) catch {};
+                break :blk fetched;
+            };
+
+            const display_name = if (meta.name.len > 0) meta.name else wm_class_str;
+
+            if (meta.icon.len > 0) {
+                stdout.print("{d}\x00display\x1f{s} > {s}\x1ficon\x1f{s}\x1fmeta\x1f{s}\n", .{ w.id, display_name, w.title, meta.icon, w.title }) catch {};
+            } else {
+                stdout.print("{d}\x00display\x1f{s} > {s}\x1fmeta\x1f{s}\n", .{ w.id, display_name, w.title, w.title }) catch {};
+            }
+        } else {
+            stdout.print("{s} | {s}\n", .{ wm_class_str, w.title }) catch {};
+        }
+    }
+    stdout.flush() catch fatal("failed to flush output\n", .{});
+}
+
+fn runListApplications(allocator: std.mem.Allocator, rofi: bool) void {
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_wrapper = std.fs.File.stdout().writer(&stdout_buf);
+    const stdout = &stdout_wrapper.interface;
+
+    const app_list = if (rofi)
+        a.AppList.initWithIcons(allocator) catch fatal("Failed to list applications.\n", .{})
+    else
+        a.AppList.init(allocator) catch fatal("Failed to list applications.\n", .{});
+    defer app_list.deinit();
+
+    for (app_list.apps_buf) |app| {
+        if (rofi) {
+            if (app.icon.len > 0) {
+                stdout.print("{s}\x00display\x1f{s}\x1ficon\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.icon, app.name }) catch {};
+            } else {
+                stdout.print("{s}\x00display\x1f{s}\x1fmeta\x1f{s}\n", .{ app.id, app.name, app.name }) catch {};
+            }
+        } else {
+            stdout.print("{s} | {s}\n", .{ app.id, app.name }) catch {};
+        }
+    }
+    stdout.flush() catch {};
 }
