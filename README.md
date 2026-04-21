@@ -1,9 +1,10 @@
 [![GNOME](https://img.shields.io/badge/GNOME-50-blue?style=plastic&logo=gnome)](https://wiki.archlinux.org/title/GNOME)
 [![Zig](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvncsmyrnk%2Fgwin%2Frefs%2Fheads%2Fmain%2Fbuild.zig.zon&search=%5C.minimum_zig_version%20%3D%20%22(.*)%22&replace=%241&style=plastic&logo=zig&label=Zig&color=F7A41D)](https://ziglang.org/)
 [![AUR Version](https://img.shields.io/aur/version/gwin-git?style=plastic&label=AUR&logo=archlinux)](https://aur.archlinux.org/packages/gwin-git)
-[![APT Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fapt.fury.io%2Fvncsmyrnk%2FPackages&search=Version%3A%20(.*)&replace=%241&style=plastic&logo=debian&label=apt&color=d70a53)](https://repo.fury.io/vncsmyrnk/)
-[![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=plastic)](https://github.com/vncsmyrnk/shell-utils/issues)
+[![APT Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fapt.fury.io%2Fvncsmyrnk%2FPackages&search=%5E.*Version%3A%20(%5B0-9a-z.%2B%5D%2B)&replace=%241&flags=s&logo=debian&label=apt&color=d70a53&style=plastic)](https://repo.fury.io/vncsmyrnk/)
+<br>
 [![CI workflow](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml/badge.svg)](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml)
+[![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen?labelColor=384047&color=33cb56)](https://github.com/vncsmyrnk/shell-utils/issues)
 
 # gwin
 
