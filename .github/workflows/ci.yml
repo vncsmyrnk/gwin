@@ -19,3 +19,31 @@ jobs:
 
       - name: Build
         run: zig build -Doptimize=ReleaseFast
+
+  build-aur:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Install git
+        run: pacman -Syu --noconfirm git
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup non-root build user
+        run: |
+          useradd -m -G wheel builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+          chown -R builder:builder $GITHUB_WORKSPACE
+
+      - name: Bootstrap yay-bin
+        run: |
+          su - builder -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"
+          su - builder -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+
+      - name: Build local PKGBUILD
+        run: |
+          su - builder -c "cd $GITHUB_WORKSPACE && yay -Bi --noconfirm ."
