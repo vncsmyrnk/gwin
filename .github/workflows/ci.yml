@@ -89,6 +89,10 @@ jobs:
             -a amd64 \
             --maintainer "Vinicius Mayrink <vncsmyrnk@gmail.com>" \
             --description "A \"Run or raise\" CLI tool for Wayland GNOME." \
+            -d "libglib2.0-0" \
+            -d "gnome-shell" \
+            --license "GPL-3.0" \
+            --url "https://github.com/vncsmyrnk/gwin" \
             -C staging-root .
 
       - name: Upload to Gemfury
