@@ -1,6 +1,7 @@
 [![GNOME](https://img.shields.io/badge/GNOME-50-blue?style=plastic&logo=gnome)](https://wiki.archlinux.org/title/GNOME)
 [![Zig](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvncsmyrnk%2Fgwin%2Frefs%2Fheads%2Fmain%2Fbuild.zig.zon&search=%5C.minimum_zig_version%20%3D%20%22(.*)%22&replace=%241&style=plastic&logo=zig&label=Zig&color=F7A41D)](https://ziglang.org/)
 [![AUR Version](https://img.shields.io/aur/version/gwin-git?style=plastic&label=AUR)](https://aur.archlinux.org/packages/gwin-git)
+[![APT Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fapt.fury.io%2Fvncsmyrnk%2FPackages&search=Version%3A%20(.*)&replace=%241&style=plastic&logo=debian&label=apt&color=d70a53)](https://repo.fury.io/vncsmyrnk/)
 [![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=plastic)](https://github.com/vncsmyrnk/shell-utils/issues)
 [![CI workflow](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml/badge.svg)](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml)
 
@@ -50,6 +51,13 @@ Install it with your favorite AUR helper.
 
 ```sh
 yay -S gwin-git
+```
+
+### APT (Debian and its derivatives)
+
+```sh
+echo "deb [trusted=yes] https://apt.fury.io/vncsmyrnk /" | sudo tee /etc/apt/sources.list.d/fury.list
+sudo apt update && sudo apt install gwin
 ```
 
 ### From source

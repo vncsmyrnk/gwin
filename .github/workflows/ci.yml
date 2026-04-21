@@ -20,6 +20,14 @@ jobs:
       - name: Build
         run: zig build -Doptimize=ReleaseFast
 
+      - name: Archive production artifacts
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: |
+            ./zig-out/bin/gwin
+
   build-aur:
     runs-on: ubuntu-latest
     container:
@@ -47,3 +55,43 @@ jobs:
       - name: Build local PKGBUILD
         run: |
           su - builder -c "cd $GITHUB_WORKSPACE && yay -Bi --noconfirm ."
+
+  upload-apt-gemfury:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential
+          sudo gem install fpm
+
+      - name: Package it using fpm
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          DYNAMIC_VERSION="1.0.0+git${COMMIT_COUNT}.${COMMIT_HASH}"
+
+          mkdir -p staging-root/usr/bin; cp ./gwin staging-root/usr/bin/
+          mkdir -p staging-root/usr/share/zsh/vendor-completions; cp ./completions/zsh/_gwin staging-root/usr/share/zsh/vendor-completions/
+
+          fpm -s dir -t deb \
+            -n gwin \
+            -v $DYNAMIC_VERSION \
+            -a amd64 \
+            --maintainer "Vinicius Mayrink <vncsmyrnk@gmail.com>" \
+            --description "A \"Run or raise\" CLI tool for Wayland GNOME." \
+            -C staging-root .
+
+      - name: Upload to Gemfury
+        run: |
+          DEB_FILE=$(find . -name '*.deb' -type f | head -n 1)
+          curl -F package=@$DEB_FILE https://${{ secrets.GEMFURY_PUSH_TOKEN }}@push.fury.io/vncsmyrnk
