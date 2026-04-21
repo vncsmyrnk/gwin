@@ -15,11 +15,11 @@ const usage =
     \\Usage: gwin <command> [options]
     \\
     \\Commands:
-    \\  switch <win_id>                    Activate the window with the given window ID
+    \\  switch --id <win_id>               Activate the window with the given window ID
+    \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
     \\  switch --last                      Activate the last application focused window
     \\  switch --last-instance             Activate the last instance of the focused window
     \\  switch --least-recent              Activate the least recently focused window
-    \\  switch --index <n>                 Activate window by index (0 = current, 1 = previous, ...)
     \\  list   windows      [--rofi]       List open windows. Format: `{wm_class} | {title}`
     \\  list   applications [--rofi]       List installed applications
     \\  raise  <desktop_id>                Raise window for <desktop_id> or launch it if not open (Example: `raise org.gnome.Calculator.desktop`)
@@ -94,20 +94,23 @@ fn runSwitch(allocator: Allocator, manager: window.WindowManager, args: []const 
         @"--last",
         @"--last-instance",
         @"--least-recent",
+        @"--id",
         @"--index",
     };
 
-    const flag = meta.stringToEnum(Flag, args[0]) orelse {
-        const id = fmt.parseInt(u32, args[0], 10) catch
-            fatal("Invalid window ID: {s}\n{s}", .{ args[0], usage });
-
-        return runSwitchByWindowID(manager, id);
-    };
-
+    const flag = meta.stringToEnum(Flag, args[0]) orelse fatal("{s}", .{usage});
     switch (flag) {
         .@"--last" => runSwitchLast(allocator, manager, exclude_pattern),
         .@"--last-instance" => runSwitchLastInstance(allocator, manager),
         .@"--least-recent" => runSwitchLeastRecent(allocator, manager, exclude_pattern),
+        .@"--id" => {
+            if (args.len < 2) fatal("Missing value for --id.\n{s}", .{usage});
+
+            const id = fmt.parseInt(u32, args[1], 10) catch
+                fatal("Invalid window ID: {s}\n{s}", .{ args[0], usage });
+
+            runSwitchByWindowID(manager, id);
+        },
         .@"--index" => {
             if (args.len < 2) fatal("Missing value for --index.\n{s}", .{usage});
 
