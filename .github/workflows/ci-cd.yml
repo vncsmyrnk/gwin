@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,8 @@ jobs:
           path: |
             ./zig-out/bin/gwin
 
-  build-aur:
+  ci-pkgbuild:
+    needs: ci
     runs-on: ubuntu-latest
     container:
       image: archlinux:base-devel
@@ -56,9 +57,53 @@ jobs:
         run: |
           su - builder -c "cd $GITHUB_WORKSPACE && yay -Bi --noconfirm ."
 
-  upload-apt-gemfury:
+  cd-pkgbuild-check:
+    needs: ci-pkgbuild
     runs-on: ubuntu-latest
-    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for PKGBUILD changes
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            pkgbuild:
+              - 'PKGBUILD'
+
+  cd-pkgbuild:
+    needs: cd-pkgbuild-check
+    if: ${{ needs.cd-pkgbuild-check.outputs.pkgbuild == 'true' && !contains(github.event.head_commit.message, '[skip-cd]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for PKGBUILD changes
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            pkgbuild:
+              - 'PKGBUILD'
+
+      - name: Publish AUR package
+        if: steps.filter.outputs.pkgbuild == 'true'
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.3
+        with:
+          pkgname: shell-utils-git
+          pkgbuild: ./PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update AUR package"
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+
+  cd-apt:
+    needs: [ci, ci-pkgbuild]
+    if: ${{ !contains(github.event.head_commit.message, '[skip-cd]') }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:

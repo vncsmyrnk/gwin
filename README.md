@@ -3,8 +3,8 @@
 [![AUR Version](https://img.shields.io/aur/version/gwin-git?style=plastic&label=AUR&logo=archlinux)](https://aur.archlinux.org/packages/gwin-git)
 [![APT Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fapt.fury.io%2Fvncsmyrnk%2FPackages&search=.*Filename%3A%20.*%2Fgwin_(%5Ba-z0-9%5C.%5C%2B%5D*)_&replace=%241&flags=s&style=plastic&logo=debian&label=apt&color=d70a53)](https://repo.fury.io/vncsmyrnk/)
 <br>
-[![CI workflow](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml/badge.svg)](https://github.com/vncsmyrnk/gwin/actions/workflows/ci.yml)
-[![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen?labelColor=384047&color=33cb56)](https://github.com/vncsmyrnk/shell-utils/issues)
+[![CI/CD workflow](https://github.com/vncsmyrnk/gwin/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/vncsmyrnk/gwin/actions/workflows/ci-cd.yml)
+[![contributions](https://img.shields.io/badge/contributions-welcome-brightgreen?labelColor=384047&color=33cb56)](https://github.com/vncsmyrnk/gwin/issues)
 
 # gwin
 
