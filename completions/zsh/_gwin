@@ -6,18 +6,18 @@ _gwin() {
   case "${words[2]}" in
   switch)
     case "${words[3]}" in
-    --last | --last-instance)
+    --index)
       _arguments \
         '--exclude:exclude:_guard "string"' \
+        '--exclude-focused-application' \
         ':'
       return
       ;;
     esac
     _arguments \
-      '--last' \
-      '--last-instance' \
-      '--least-recent' \
       '--index:index:_guard "[0-9]#" "integer"' \
+      '--id:id:_guard "[0-9]#" "integer"' \
+      '--last-instance' \
       ':'
     return
     ;;
