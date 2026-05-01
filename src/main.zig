@@ -171,9 +171,6 @@ fn runRaise(allocator: Allocator, manager: window.WindowManager, args: []const [
 
         if (ascii.indexOfIgnoreCase(w.wm_class, base_name) != null) {
             found_window = w;
-            if (w.focus) {
-                continue;
-            }
             break;
         }
     }
