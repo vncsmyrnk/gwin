@@ -1,7 +1,5 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("gio/gio.h");
-});
+const c = @import("c");
 
 pub const Error = error{
     ConnectionFailed,

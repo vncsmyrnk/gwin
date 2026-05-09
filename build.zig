@@ -4,6 +4,14 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const translate_c = b.addTranslateC(.{
+        .root_source_file = b.path("src/c.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    translate_c.linkSystemLibrary("gio-2.0", .{});
+    translate_c.linkSystemLibrary("gio-unix-2.0", .{});
+
     const exe = b.addExecutable(.{
         .name = "gwin",
         .use_llvm = true,
@@ -12,11 +20,14 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .link_libc = true,
+            .imports = &.{
+                .{
+                    .name = "c",
+                    .module = translate_c.createModule(),
+                },
+            },
         }),
     });
-
-    exe.linkSystemLibrary("gio-2.0");
-    exe.linkSystemLibrary("gio-unix-2.0");
 
     b.installArtifact(exe);
 

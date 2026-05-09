@@ -1,9 +1,5 @@
 const std = @import("std");
-
-const c = @cImport({
-    @cInclude("gio/gio.h");
-    @cInclude("gio/gdesktopappinfo.h");
-});
+const c = @import("c");
 
 pub const App = struct {
     id: []const u8,

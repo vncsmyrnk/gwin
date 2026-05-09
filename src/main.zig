@@ -9,7 +9,8 @@ const heap = std.heap;
 const meta = std.meta;
 const ascii = std.ascii;
 const Allocator = std.mem.Allocator;
-const File = std.fs.File;
+const Io = std.Io;
+const File = std.Io.File;
 
 const usage =
     \\Usage: gwin <command> [options]
@@ -44,20 +45,15 @@ fn parseCommand(arg: []const u8) ?Command {
 }
 
 fn fatal(comptime msg_fmt: []const u8, args: anytype) noreturn {
-    var buf: [4096]u8 = undefined;
-    const msg = fmt.bufPrint(&buf, msg_fmt, args) catch "fatal error\n";
-    _ = File.stderr().write(msg) catch {};
+    std.debug.print(msg_fmt, args);
     std.process.exit(1);
 }
 
-pub fn main() void {
-    var gpa = heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) void {
+    const allocator = init.gpa;
 
-    const args = std.process.argsAlloc(allocator) catch
+    const args = init.minimal.args.toSlice(init.arena.allocator()) catch
         fatal("Failed to read arguments.\n", .{});
-    defer std.process.argsFree(allocator, args);
 
     if (args.len < 2) fatal("{s}", .{usage});
 
@@ -71,7 +67,7 @@ pub fn main() void {
 
     switch (cmd) {
         .switchCmd => runSwitch(allocator, manager, args[2..]),
-        .listCmd => runList(allocator, manager, args[2..]),
+        .listCmd => runList(allocator, init.io, manager, args[2..]),
         .raiseCmd => runRaise(allocator, manager, args[2..]),
         .closeCmd => runClose(allocator, manager, args[2..]),
     }
@@ -123,7 +119,7 @@ fn runSwitch(allocator: Allocator, manager: window.WindowManager, args: []const 
     }
 }
 
-fn runList(allocator: Allocator, manager: window.WindowManager, args: []const [:0]const u8) void {
+fn runList(allocator: Allocator, io: Io, manager: window.WindowManager, args: []const [:0]const u8) void {
     if (args.len == 0) fatal("{s}", .{usage});
 
     var rofi = false;
@@ -141,8 +137,8 @@ fn runList(allocator: Allocator, manager: window.WindowManager, args: []const [:
     };
 
     switch (subCmd) {
-        .windows => runListWindows(allocator, manager, rofi),
-        .applications => runListApplications(allocator, rofi),
+        .windows => runListWindows(allocator, io, manager, rofi),
+        .applications => runListApplications(allocator, io, rofi),
     }
 }
 
@@ -261,7 +257,7 @@ fn runSwitchByIndex(allocator: Allocator, manager: window.WindowManager, index: 
         fatal("Failed to activate window {d}.\n", .{win.id});
 }
 
-fn runListWindows(allocator: Allocator, manager: window.WindowManager, rofi: bool) void {
+fn runListWindows(allocator: Allocator, io: Io, manager: window.WindowManager, rofi: bool) void {
     const window_list = manager.list(allocator) catch
         fatal("Failed to list windows.\n", .{});
     defer window_list.deinit();
@@ -272,7 +268,7 @@ fn runListWindows(allocator: Allocator, manager: window.WindowManager, rofi: boo
     }
 
     var stdout_buf: [4096]u8 = undefined;
-    var stdout_wrapper = File.stdout().writer(&stdout_buf);
+    var stdout_wrapper = File.stdout().writer(io, &stdout_buf);
     const stdout = &stdout_wrapper.interface;
 
     var arena = heap.ArenaAllocator.init(allocator);
@@ -301,9 +297,9 @@ fn runListWindows(allocator: Allocator, manager: window.WindowManager, rofi: boo
     stdout.flush() catch fatal("failed to flush output\n", .{});
 }
 
-fn runListApplications(allocator: Allocator, rofi: bool) void {
+fn runListApplications(allocator: Allocator, io: Io, rofi: bool) void {
     var stdout_buf: [4096]u8 = undefined;
-    var stdout_wrapper = File.stdout().writer(&stdout_buf);
+    var stdout_wrapper = File.stdout().writer(io, &stdout_buf);
     const stdout = &stdout_wrapper.interface;
 
     const app_list = if (rofi)
