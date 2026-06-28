@@ -65,8 +65,7 @@ sudo apt update && sudo apt install gwin
 
 ```sh
 git clone git@github.com:vncsmyrnk/gwin.git
-just build
-./zig-out/bin/gwin
+make install
 ```
 
 > [!IMPORTANT]
