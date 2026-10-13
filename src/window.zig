@@ -8,7 +8,7 @@ const iface = "org.gnome.Shell.Extensions.Windows";
 pub const Window = struct {
     in_current_workspace: bool,
     wm_class: []const u8,
-    wm_class_instance: []const u8,
+    wm_class_instance: ?[]const u8,
     title: []const u8,
     pid: i32,
     id: u32,
